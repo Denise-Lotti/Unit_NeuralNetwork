@@ -25,6 +25,7 @@ test data: 5
 import tensorflow as tf
 import Data_Set_Generator as soil
 import Error_Plots as Plots
+#import numpy as np
 
 
 """ Number of training data 
@@ -46,8 +47,8 @@ range_test = range((m_training+m_cv),total_examples)
 sess = tf.InteractiveSession()
 
 """ creating input and output vectors """
-x = tf.placeholder(tf.float32, shape=[None, 1])
-y_true = tf.placeholder(tf.float32, shape=[None, 2])
+x = tf.placeholder(tf.float32, shape=[None, soil.input_number])
+y_true = tf.placeholder(tf.float32, shape=[None, soil.output_number])
 
 """ Weights and Biases """
 
@@ -62,15 +63,15 @@ def bias(shape):
     return tf.Variable(initial)
 
 """ Creating weights and biases for all layers """
-theta1 = weights([1,4])
-bias1 = bias([1,4])
+theta1 = weights([soil.weight_1_1,soil.weight_1_2])
+bias1 = bias([1,soil.bias_1])
 
-theta2 = weights([4,4])
-bias2 = bias([1,4])
+theta2 = weights([soil.weight_2_1,soil.weight_2_2])
+bias2 = bias([1,soil.bias_2])
 
 "Last layer"
-theta3 = weights([4,2])
-bias3 = bias([1,2])
+theta3 = weights([soil.weight_3_1,soil.weight_3_2])
+bias3 = bias([1,soil.bias_3])
 
 
 """ Hidden layer input (Sum of weights, activation functions and bias)
@@ -99,19 +100,20 @@ z3 = Z_Layer(hyp2, theta2, bias2)
 hyp3 = Sigmoid(z3)
 ' layer 4 - output layer '
 zL = Z_Layer(hyp3, theta3, bias3)
-hypL = tf.add( tf.add(tf.pow(zL,3), tf.pow(zL,2) ), zL)
+#hypL = zL
+hypL = tf.add( tf.add(tf.pow(zL,4) , tf.add(tf.pow(zL,3), tf.pow(zL,2) ) ), zL)
+#hypL = tf.add(tf.add(tf.pow(zL,3), tf.pow(zL,2) ) , zL) + 1.0 / ( 1.0 + tf.exp(-zL))
 
 
 """ Cost function """
 " Cost function can't be the logarithmic version because there are negative stress increments "
-cost_function = tf.mul( tf.div(0.5, m_training), tf.pow( tf.sub(hypL, y_true), 2)) 
+cost_function1 = tf.mul( 0.5, tf.pow( tf.sub(hypL[:,0], y_true[:,0]), 2))
+cost_function2 = tf.mul( 0.5, tf.pow( tf.sub(hypL[:,1], y_true[:,1]), 2))
+cost_function = tf.add(cost_function1, cost_function2)
 
 
 '-----------------------------------------------------------'
 """ Backpropagation """
-error1 = cost_function[:,1]
-error2 = cost_function[:,2]
-error3 = cost_function[:,3]
 
 ' error terms delta '
 """ name = delta'layer_number'_'feature_number' """
@@ -151,6 +153,8 @@ step = [
 
 correct_prediction = tf.equal(tf.arg_max(hypL, 1), tf.arg_max(y_true, 1))
 
+#correct_prediction = 1.0 - cost_function
+
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 sess.run(tf.initialize_all_variables())
@@ -159,28 +163,38 @@ keep_prob = tf.placeholder(tf.float32)
 
 
 training_error=[]
+cost_function_training = []
 for j in range_training:
-    train_accuracy = accuracy.eval(feed_dict={x: soil.input_matrixs[j], y_true: soil.output_matrixs[j]})
+    feedj = {x: soil.input_matrixs[j], y_true: soil.output_matrixs[j] , keep_prob: 1.0}
+    sess.run(step, feed_dict=feedj)
+    train_accuracy = accuracy.eval(feed_dict=feedj)
+    cost_function_train = sess.run(tf.reduce_mean(cost_function), feed_dict=feedj)
     print("step %d, training accuracy %g" % (j, train_accuracy))
-    sess.run(step, feed_dict={x: soil.input_matrixs[j], y_true: soil.output_matrixs[j]})
+    print("Cost function: %f" % cost_function_train)
+    #train_step.run(feed_dict=feedj)
     training_error.append(1 - train_accuracy)
+    cost_function_training.append(cost_function_train)
 
-cv_error=[]    
+cv_error=[]  
+#cost_function_validation =[]  
 for k in range_cv:
-    cv_accuracy = accuracy.eval(feed_dict={x: soil.input_matrixs[k], y_true: soil.output_matrixs[k], keep_prob: 1.0})
+    feedk = {x: soil.input_matrixs[k], y_true: soil.output_matrixs[k] , keep_prob: 1.0}
+    cv_accuracy = accuracy.eval(feed_dict=feedk)
+    #cost_function_cv = sess.run(tf.reduce_mean(cost_function), feed_dict=feedk)
     print("cross-validation accuracy %g" % cv_accuracy)
+    #print("Cost function: %f" % cost_function_cv)
     cv_error.append(1-cv_accuracy) 
+    #cost_function_validation.append(cost_function_cv)
 
 for l in range_test:
-    print("test accuracy %g" % accuracy.eval(feed_dict={x: soil.input_matrixs[k], y_true: soil.output_matrixs[k], keep_prob: 1.0}))
+    print("test accuracy %g" % accuracy.eval(feed_dict={x: soil.input_matrixs[l], y_true: soil.output_matrixs[l], keep_prob: 1.0}))
 
 
 """ Error Analysis """
 
 " Learning Curves "
 
-figure1 = Plots.LearningCurves(cv_error, training_error)
- 
-
+figure1 = Plots.LearningCurvesT(cv_error, training_error,'error plot')
+#figure2 = Plots.LearningCurvesT(cost_function_validation, cost_function_training, 'cost functions')
 
 
