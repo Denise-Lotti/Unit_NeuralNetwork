@@ -23,7 +23,8 @@ test data: 5
 """
 
 import tensorflow as tf
-import Data_Set_Generator as soil
+'Inserting isotropic hardening data'
+import isotropic_hardening_data as soil
 import Error_Plots as Plots
 #import numpy as np
 
